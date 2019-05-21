@@ -1,0 +1,5 @@
+nx_tieoff.c:21:7:NX_TIEOFF_Initialize	0	static
+nx_tieoff.c:37:6:NX_TIEOFF_SetBaseAddress	0	static
+nx_tieoff.c:42:5:NX_TIEOFF_GetPhysicalAddress	0	static
+nx_tieoff.c:78:7:NX_TIEOFF_Set	20	static
+nx_tieoff.c:101:7:NX_TIEOFF_Get	0	static

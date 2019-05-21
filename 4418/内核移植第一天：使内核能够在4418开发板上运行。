@@ -1,0 +1,400 @@
+内核移植第一天：使内核能够在4418开发板上运行。
+
+内核版本：3.4.39
+
+从安卓工程中复制mach-s5p4418和plat-s5p4418文件夹。复制到内核的arch/arm/目录下。
+修改arch/arm/Makefile，
+machine-$(CONFIG_ARCH_S5P4418)      := s5p4418
+plat-$(CONFIG_ARCH_S5P4418) := s5p4418
+在arch/arm/Makefile的最后加入
+# Add build option for nexell SoC
+ifeq ($(CONFIG_ARCH_CPU_SLSI),y)
+include $(srctree)/$(machdirs)/Makefile
+include $(srctree)/$(platdirs)/Makefile
+endif
+
+修改arch/arm/Kconfig
+加入
+config ARCH_S5P4418
+    bool "SLsiAP S5P4418D/Q"
+    select ARCH_CPU_SLSI
+    select CPU_V7
+    select ARM_AMBA
+    select ARM_GIC
+    select ARM_VIC
+    select HAVE_SMP
+    select MIGHT_HAVE_CACHE_L2X0
+    select ARCH_HAS_CPUFREQ
+    select GENERIC_TIME
+    select GENERIC_CLOCKEVENTS
+    select ZONE_DMA
+    select HAVE_MACH_CLKDEV
+    select NEED_MACH_MEMORY_H
+    select NEED_MACH_IO_H
+    select ARCH_REQUIRE_GPIOLIB
+    select ARM_PATCH_PHYS_VIRT
+    help 
+      Support for nexell S5P4418 dual/quard core (ARM Cortex A9) platform
+
+在source的最后加入如下代码
+if ARCH_CPU_SLSI
+source "kernel/Kconfig.hz"
+endif
+
+if ARCH_S5P4418
+source "arch/arm/mach-s5p4418/Kconfig"
+endif
+以上内容。
+
+修改arch/arm/tools/mach-types
+加入
+nxp4330         MACH_S5P4418    S5P4418         4330
+
+修改arch/arm/include/asm/pgtable.h
+将#define VMALLOC_END		0xff000000UL该宏定义注释掉。
+
+
+修改arch/arm/common/gic.c
+在该函数
+static void __cpuinit gic_cpu_init(struct gic_chip_data *gic)
+内进行修改，
+原内容
+	/*
+	 * Deal with the banked PPI and SGI interrupts - disable all
+	 * PPI interrupts, ensure all SGI interrupts are enabled.
+	 */
+	writel_relaxed(0xffff0000, dist_base + GIC_DIST_ENABLE_CLEAR);
+	writel_relaxed(0x0000ffff, dist_base + GIC_DIST_ENABLE_SET);
+
+修改后
+	/*
+	 * Deal with the banked PPI and SGI interrupts - disable all
+	 * PPI interrupts, ensure all SGI interrupts are enabled.
+	 */
+#if defined (CONFIG_SMP) && defined (CONFIG_ARCH_S5P4418) && defined (CONFIG_CPU_S5P4418_SMP_ISR)
+	writel_relaxed(0x7fff0000, dist_base + GIC_DIST_ENABLE_CLEAR);
+	writel_relaxed(0x8000ffff, dist_base + GIC_DIST_ENABLE_SET);
+#else
+	writel_relaxed(0xffff0000, dist_base + GIC_DIST_ENABLE_CLEAR);
+	writel_relaxed(0x0000ffff, dist_base + GIC_DIST_ENABLE_SET);
+#endif
+
+在该函数void __init gic_init_bases 内进行修改
+原内容
+	/*
+	 * Find out how many interrupts are supported.
+	 * The GIC only supports up to 1020 interrupt sources.
+	 */
+	gic_irqs = readl_relaxed(gic_data_dist_base(gic) + GIC_DIST_CTR) & 0x1f;
+
+修改后
+	/*
+	 * Find out how many interrupts are supported.
+	 * The GIC only supports up to 1020 interrupt sources.
+	 */
+#if defined (CONFIG_ARCH_S5P4418)
+	gic_irqs = 0;
+#else
+	gic_irqs = readl_relaxed(gic_data_dist_base(gic) + GIC_DIST_CTR) & 0x1f;
+#endif
+
+在该函数的
+	gic_irqs = (gic_irqs + 1) * 32;
+	if (gic_irqs > 1020)
+		gic_irqs = 1020;
+	gic->gic_irqs = gic_irqs;
+这段代码下方增加代码
+#if defined (CONFIG_ARCH_S5P6818)
+	gic_irqs  = NR_IRQS;
+#endif
+
+
+修改arch/arm/common/vic.c
+在/**
+ * vic_init2 - common initialisation code
+ * @base: Base of the VIC.
+ *
+ * Common initialisation code for registration
+ * and resume.
+*/
+加入预定义函数
+修改前
+static void vic_init2(void __iomem *base)
+{
+	int i;
+
+	for (i = 0; i < 16; i++) {
+		void __iomem *reg = base + VIC_VECT_CNTL0 + (i * 4);
+		writel(VIC_VECT_CNTL_ENABLE | i, reg);
+	}
+
+	writel(32, base + VIC_PL190_DEF_VECT_ADDR);
+}
+修改后
+#if defined(CONFIG_ARCH_NXP4330)
+static void vic_init2(void __iomem *base)
+{
+	return;
+}
+#else
+static void vic_init2(void __iomem *base)
+{
+	int i;
+
+	for (i = 0; i < 16; i++) {
+		void __iomem *reg = base + VIC_VECT_CNTL0 + (i * 4);
+		writel(VIC_VECT_CNTL_ENABLE | i, reg);
+	}
+
+	writel(32, base + VIC_PL190_DEF_VECT_ADDR);
+}
+#endif
+
+修改include/linux/amba/serial.h
+在结构体amba_pl011_data中的最后加上void (*wake_peer) (void *port);
+
+修改include/linux/mmc/dw_mmc.h中的结构体dw_mci_board
+在unsigned int bus_hz; /* Bus speed */下一行添加unsigned int max_bus_hz; /* MAXIMUM Bus speed */
+在unsigned int caps2;	/* More capabilities */下一行添加unsigned int pm_caps;	/* supported pm features */
+在u32 detect_delay_ms;下一行添加
+	char *hclk_name;
+	char *cclk_name;
+在int (*get_bus_wd)(u32 slot_id);下一行添加
+	void (*cfg_gpio)(int width);
+	void (*hw_reset)(u32 slot_id);
+	void (*set_io_timing)(void *data, unsigned char timing);
+
+	/* Phase Shift Value */
+	unsigned int sdr_timing;
+	unsigned int ddr_timing;
+	u8 clk_drv;
+	u8 clk_smpl;
+	bool tuned;
+
+	/*
+	 * add by Youngbok Park
+	 */
+	u32 clk_dly;
+	/* cd_type: Type of Card Detection method (see cd_types enum above) */
+	enum dw_mci_cd_types cd_type;
+
+	/* Number of descriptors */
+	unsigned int desc_sz;
+
+	/* ext_cd_cleanup: Cleanup external card detect subsystem.
+	* ext_cd_init: Initialize external card detect subsystem.
+	*	notify_func argument is a callback to the dwmci driver
+	*	that triggers the card detection event. Callback arguments:
+	*	dev is pointer to platform device of the host controller,
+	*	state is new state of the card (0 - removed, 1 - inserted).
+	*/
+
+	int (*ext_cd_init)(void (*notify_func)
+		(struct platform_device *, int state));
+	int (*ext_cd_cleanup)(void (*notify_func)
+		(struct platform_device *, int state));
+
+在结构体最后添加
+	void (*suspend)(struct dw_mci *host);
+	void (*resume)(struct dw_mci *host);
+	void (*late_resume)(struct dw_mci *host);
+	u32		hs_over_clk;
+	u32		hw_timeout;	/* add by jhkim */
+	u32		mode;	/* add by bok	*/
+
+在include/linux/mmc/dw_mmc.h文件中加入枚举型结构体
+enum dw_mci_cd_types {
+	DW_MCI_CD_INTERNAL,	/* use mmc internal CD line */
+	DW_MCI_CD_EXTERNAL,	/* use external callback */
+	DW_MCI_CD_GPIO,		/* use external gpio pin for CD line */
+	DW_MCI_CD_NONE,		/* no CD line, use polling to detect card */
+	DW_MCI_CD_PERMANENT,	/* no CD line, card permanently wired to host */
+};
+
+在include/linux/mmc/dw_mmc.h文件中增加宏定义
+#define DMA_MODE	1
+#define PIO_MODE	2
+
+#define	DW_MMC_DRIVE_DELAY(n)		((n & 0xFF) << 0)	// write
+#define	DW_MMC_DRIVE_PHASE(n)		((n & 0x03) <<16)	// write
+#define	DW_MMC_SAMPLE_DELAY(n)		((n & 0xFF) << 8)	// read
+#define	DW_MMC_SAMPLE_PHASE(n)		((n & 0x03) <<24)	// read
+
+复制安卓工程目录的kernel/include/linux/vr 文件夹到内核目录include/linux/目录下
+
+修改drivers/tty/serial/Kconfig
+在文件末尾增加
+
+config SERIAL_NXP_S3C
+    tristate "Nexell S3C SoC serial port support"
+    select SERIAL_CORE
+    help
+      Support for the on-chip UARTs on the S3C series CPUs,
+      providing /dev/ttySAC0, 1 and 2 (note, some machines may not 
+      provide all of these ports, depending on how the serial port
+      pins are configured.
+
+      If unsure, say N.
+
+config SERIAL_NXP_S3C_UARTS
+    int "Available UART ports"
+    depends on SERIAL_NXP_S3C
+    default 6
+    help 
+      Select the number of available UART ports for the Nexell S3C
+      serial driver
+
+config SERIAL_NXP_S3C_CONSOLE
+    bool "Support for console on Nexell S3C serial port"
+    depends on SERIAL_NXP_S3C=y
+    select SERIAL_CORE_CONSOLE
+    ---help---
+      Allow selection of the S3C24XX on-board serial ports for use as
+      an virtual console.
+
+      Even if you say Y here, the currently visible virtual console
+      (/dev/tty0) will still be used as the system console by default, but
+      you can alter that using a kernel command line option such as
+      "console=ttySACx". (Try "man bootparam" or see the documentation of
+      your boot loader about how to pass options to the kernel at
+      boot time.)
+
+config SERIAL_NXP_UART0
+    bool "Serial port 0"
+    depends on SERIAL_AMBA_PL011 || SERIAL_NXP_S3C
+    default y
+
+config SERIAL_NXP_UART0_DMA
+    bool "Use DMA"
+    depends on SERIAL_NXP_UART0=y && (SERIAL_AMBA_PL011 ||  SERIAL_NXP_S3C)
+
+config SERIAL_NXP_UART1
+    bool "Serial port 1"
+    depends on SERIAL_AMBA_PL011 ||  SERIAL_NXP_S3C
+    default n
+
+    config SERIAL_NXP_UART1_DMA
+    bool "Use DMA"
+    depends on SERIAL_NXP_UART1=y && (SERIAL_AMBA_PL011 ||  SERIAL_NXP_S3C)
+
+config SERIAL_NXP_UART2
+    bool "Serial port 2"
+    depends on SERIAL_AMBA_PL011 ||  SERIAL_NXP_S3C
+    default n
+
+config SERIAL_NXP_UART2_DMA
+    bool "Use DMA"
+    depends on SERIAL_NXP_UART2=y && (SERIAL_AMBA_PL011 ||  SERIAL_NXP_S3C)
+
+config SERIAL_NXP_UART3
+    bool "Serial port 3"
+    depends on SERIAL_AMBA_PL011 ||  SERIAL_NXP_S3C
+    default n
+
+config SERIAL_NXP_UART4
+    bool "Serial port 4"
+    depends on SERIAL_NXP || SERIAL_AMBA_PL011 ||  SERIAL_NXP_S3C
+    default n
+
+config SERIAL_NXP_UART5
+    bool "Serial port 5"
+    depends on SERIAL_AMBA_PL011 ||  SERIAL_NXP_S3C
+    default n
+
+config SERIAL_NXP_RESUME_WORK
+    bool "Set this to reduce resume time (PL011)"
+    depends on SERIAL_AMBA_PL011
+    default n
+    help
+      Disable console output to save wakeup time when resume.\, but
+      could be lost resume log message
+
+
+在安卓目录下复制.config到内核根目录下，并保存备份.config为my_config
+执行make menuconfig
+
+System Type->ARM system type选择为SLsiAP S5P4418D/Q
+Timer frequency配置为1000HZ
+Memory max order配置为16Mbyte(为lcd驱动做准备)
+同时取消pwm驱动的选中状态。
+在Device Drivers->Character devices->Serial drivers->
+  │ │    <*> ARM AMBA PL011 serial port support                                    │ │  
+  │ │    [*]   Support for console on AMBA serial port 
+  │ │    <*> Nexell S3C SoC serial port support                                    │ │  
+  │ │    [*]   Serial port 0 (NEW)                                                 │ │  
+  │ │    [ ]     Use DMA (NEW)                                                     │ │  
+  │ │    [*]   Serial port 1                                                       │ │  
+  │ │    [*]     Use DMA (NEW)                                                     │ │  
+  │ │    [*]   Serial port 2                                                       │ │  
+  │ │    [*]     Use DMA (NEW)                                                     │ │  
+  │ │    [*]   Serial port 3                                                       │ │  
+  │ │    [ ]   Serial port 4 (NEW)                                                 │ │  
+  │ │    [ ]   Serial port 5 (NEW) 
+  │ │    [*] Set this to reduce resume time (PL011) 
+配置为以上。
+
+至此，内核能够正常打印输出信息，但是由于没能挂在文件系统导致不能进入shell界面。
+
+在drivers/mmc/host/Kconfig文件的末尾加入以下内容
+config MMC_NXP
+	bool
+
+config MMC_NXP_CH0
+	bool "Support SD/MMC CH 0"
+	depends on MMC_DW
+	select MMC_NXP
+		default y
+
+config MMC_NXP_CH0_USE_DMA
+	bool "Use SD/MMC CH 0 DMA MODE"
+	depends on MMC_NXP_CH0 && MMC_DW_IDMAC
+		default y
+
+config MMC_NXP_CH1
+	bool "Support SD/MMC CH 1"
+	depends on MMC_DW
+	select MMC_NXP
+		default n
+
+config MMC_NXP_CH1_USE_DMA
+	bool "Use SD/MMC CH 1 DMA MODE"
+	depends on MMC_NXP_CH1 && MMC_DW_IDMAC
+		default y
+
+config MMC_NXP_CH2
+	bool "Support SD/MMC CH 2"
+	depends on MMC_DW
+	select MMC_NXP
+		default n
+config MMC_NXP_CH2_USE_DMA
+	bool "Use SD/MMC CH 2 DMA MODE"
+	depends on MMC_NXP_CH2 && MMC_DW_IDMAC
+		default y
+
+执行make menuconfig
+配置Device Drivers->MMC/SD/SDIO card support->Support SD/MMC CH 2为选中状态，同时去掉0和1通道的选中状态
+MMC2与外部存储芯片相连接。
+
+
+修改drivers/mmc/core/mmc.c中代码
+	//if (card->ext_csd.rev > 6) {
+	if (card->ext_csd.rev > 7) {
+
+在include/linux/mmc/dw_mmc.h中增加宏定义
+/* No detect end bit during read */
+#define DW_MCI_QUIRK_NO_DETECT_EBIT             BIT(4)
+/* Hardware reset using power off/on of card */
+#define DW_MMC_QUIRK_HW_RESET_PW        BIT(5)
+
+make menuconfig
+System Type->Platform board->(X) TOPEET: Android topeet board
+
+修改arch/arm/plat-s5p4418/topeet/device.c 
+在第38行的#include <linux/gpio.h>下一行添加如下内容
+#include <linux/delay.h>
+
+将#include <linux/combo_mt66xx.h>移动到#if defined(CONFIG_MTK_COMBO_MT66XX)行的下面
+
+在Kernel hacking内取消Sleep inside atomic section checking的选中状态，可以使in_atomic不输出调试信息，在ping和wifi驱动中能够用到。
+
+编译执行，此时能够进入到shell界面。

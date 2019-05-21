@@ -1,0 +1,8 @@
+nx_bit_accessor.c:9:5:NX_BIT_SetBitRange32	0	static
+nx_bit_accessor.c:27:5:NX_BIT_SetBit32	0	static
+nx_bit_accessor.c:40:5:NX_BIT_SetBitRange16	8	static
+nx_bit_accessor.c:46:5:NX_BIT_SetBit16	0	static
+nx_bit_accessor.c:51:6:NX_BIT_GetBitRange32	0	static
+nx_bit_accessor.c:63:7:NX_BIT_GetBit32	0	static
+nx_bit_accessor.c:69:5:NX_BIT_GetBitRange16	8	static
+nx_bit_accessor.c:75:7:NX_BIT_GetBit16	0	static

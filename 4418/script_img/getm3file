@@ -1,0 +1,28 @@
+#!/bin/sh
+
+FILE=$1
+
+echo "get ${FILE}"
+
+if [ ${FILE} = "system" ]
+then
+    scp duanshuai@192.168.200.202:/home/duanshuai/android_source/m3filesystem/system_m3.img ./
+    if [ -e "system_m3.img" ]
+    then
+        fastboot flash system system_m3.img
+    fi
+elif [ ${FILE} = "boot" ]
+then
+    scp duanshuai@192.168.200.202:/home/duanshuai/4418/new_android/android/result/boot.img ./
+    if [ -e "boot.img" ]
+    then
+        fastboot flash boot boot.img
+    fi
+elif [ ${FILE} = "uboot" ]
+then
+    scp duanshuai@192.168.200.202:/home/duanshuai/m3/rom/m3/u-boot/uboot.img ./
+    if [ -e "uboot.img" ]
+    then
+        fastboot flasg uboot uboot.img
+    fi
+fi

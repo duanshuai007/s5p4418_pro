@@ -1,0 +1,2 @@
+
+这个版本是能够正常打印串口信息，因为新加入了mmc出现一些库包含的错误，去掉make menuconfig->device>

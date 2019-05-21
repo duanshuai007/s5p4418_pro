@@ -1,0 +1,103 @@
+gic 结构定义：
+1、这结构要求能够处理链接到gic的任何处理器的所有挂起的中断请求。
+2、一个常见的中断控制器的编程接口，适用于单处理器或多处理器系统。
+
+通过软件写gic的寄存器GICD_SGIR来产生中断。使用这中断进行处理器间通信。
+
+当一个SGI发生在多处理器环境中，CPUID在GICC_IAR（Interrupt Acknowledge Register
+）或者是GICC_AIAR（Aliased Interrupt Acknowledge Register），标识请求中断的处理器
+
+1-N模式。只有一个处理器处理中断。系统必须实现一种机制来决定哪个处理器处理一个被编程为多个处理器的中断。
+N-N模式，所有处理器单独接受中断，当一个处理器响应了中断，这个处理器的中断挂起状态被清空，其他处理器仍然保留挂起状态。
+
+分发服务器Distributor：
+
+分发服务器提供一个编程接口：
+1. 全局使能转发中断到CPU接口
+2. 使能或禁止每个中断
+3. 设置每个中断的优先级
+4. 设置每个中断的目标处理器列表
+5. 设置每个外部中断为电平触发或边沿触发
+6. 设置每个中断为GROUP0 或 GROUP1
+附加的，分发服务器提供：
+1。每个中断状态的可见性
+2. 一个软件设置外部外部中断挂起状态为set或clear的机制
+
+
+ID32-ID1019  	SPIs
+ID0-ID31		----- ID0-ID15 		SGIs
+				 |
+				 |___ ID16-ID31 	PPIs
+
+在多处理器系统中：
+--- PPIs被转发到特定的CPU接口，并且专属于该接口。在CPU接口优先响应的中断中不包括PPIs.
+--- 每个链接到处理器通过写分发服务器的GICD_SGIR寄存器产生一个SGI。每次写都能生成SGIs对于目标对处理器的相同ID。
+	在分发处理器中，一个SGI是被唯一的中断号组合所标识。ID0-ID15,目标处理器ID,CPUID0-CPUID7,处理器源ID,CPUID0-CPUID7
+
+
+
+此组寄存器主要设置某个中断对应的目标处理器，即某个中断应该发往哪个处理器进行处理；和上一组优先级设置寄存器一样，本组寄存器同样是每个寄存器可以设置4个中断的目标处理器，每个中断有8个bit位可进行设置；此组寄存器的个数同样也由GICD_TYPER.ITLinesNumber决定，为(8*(GICD_TYPER.ITLinesNumber+1))个. 相对偏移区间为0x800-0xbf8；每个寄存器的域划分为：
+[31:24] CPU targets, byte offset 3
+[23:16] CPU targets, byte offset 2
+page105image3624page105image3784page105image3944
+[15:8]  CPU targets, byte offset 1
+[7:0]     CPU targets, byte offset 0
+ Meaning of CPU targets field bit values
+page105image12888
+
+0bxxxxxxx1目标处理器为cpuinterface0
+0bxxxxxx1x目标处理器为cpuinterface1
+0bxxxxx1xx目标处理器为cpuinterface2
+0bxxxx1xxx目标处理器为cpuinterface3
+0bxxx1xxxx目标处理器为cpuinterface4
+0bxx1xxxxx目标处理器为cpuinterface5
+0bx1xxxxxx目标处理器为cpuinterface6
+0b1xxxxxxx目标处理器为cpuinterface7    
+
+如果一个中断对应的8bit位值为0x3，那么就代表此中断要发往处理器0和1；
+某个中断要操作的寄存器及操作域的计算方法为：
+For interrupt IDm, when DIV and MOD are the integer division and modulo operations:
+
+the corresponding GICD_ITARGETSRn number,n, is given byn=mDIV 4
+the offset of the required GICD_ITARGETSR is (0x800+ (4*n))
+the byte offset of the required Priority field in this register is mMOD 4, where:
+byte offset 0 refers to register bits [7:0]
+byte offset 1 refers to register bits [15:8]
+byte offset 2 refers to register bits [23:16]
+byte offset 3 refers to register bits [31:24]. 
+对于不同状态的中断，我们操作其对应的操作域会产生不同的影响：
+如果一个中断处于active状态，那么我们操作更改其目标处理器寄存器，对此轮响应这个中断的目标处理器没有任何影响，只有下次再来这个中断时才会发往我们更改的目标处理器；
+如果一个中断处于pending状态，那么我们更改其目标处理器寄存器，接下来我们设定的目标处理器就会响应这个中断；
+如果一个中断处于active and pending状态，那么此轮目标处理器不会被更改，但是再次响应此中断时设置值就会生效；
+
+
+GICD_CTLR 允许将挂起的中断从分发服务器转发到CPU接口
+GICD_TYPER 提供了关于配置GIC的信息，它包括
+			5-7 CPUNumber   指示实现的CPU接口的数量。实现的CPU接口的数量比这个字段的值多一个，例如，如果这个字段是0b011，那么有四个CPU接口。如果GIC实现了虚拟化扩展，这也是虚拟CPU接口的数量。
+			0-4 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

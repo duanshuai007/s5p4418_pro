@@ -1,0 +1,42 @@
+Binary file built-in.o matches
+Binary file chain_mode.o matches
+Binary file dwmac1000_core.o matches
+Binary file dwmac1000_dma.o matches
+Binary file dwmac100_core.o matches
+Binary file dwmac100_dma.o matches
+Binary file enh_desc.o matches
+Binary file norm_desc.o matches
+nxpmac_ethtool.c:488:		priv->hw->dma->dma_diagnostic_fr(&dev->stats,
+nxpmac_ethtool.c:727:	priv->hw->dma->rx_watchdog(priv->ioaddr, priv->rx_riwt);
+Binary file nxpmac_ethtool.o matches
+Binary file nxpmac_hwtstamp.o matches
+nxpmac_main.c:43:#include <linux/dma-mapping.h>
+nxpmac_main.c:1464:		priv->hw->dma->dma_mode(priv->ioaddr, tc, tc);
+nxpmac_main.c:1473:		priv->hw->dma->dma_mode(priv->ioaddr, SF_DMA_MODE, SF_DMA_MODE);
+nxpmac_main.c:1476:		priv->hw->dma->dma_mode(priv->ioaddr, tc, SF_DMA_MODE);
+nxpmac_main.c:1578:	priv->hw->dma->enable_dma_irq(priv->ioaddr);
+nxpmac_main.c:1583:	priv->hw->dma->disable_dma_irq(priv->ioaddr);
+nxpmac_main.c:1598:	priv->hw->dma->stop_tx(priv->ioaddr);
+nxpmac_main.c:1612:	priv->hw->dma->start_tx(priv->ioaddr);
+nxpmac_main.c:1678:	status = priv->hw->dma->dma_interrupt(priv->ioaddr, &priv->xstats);
+nxpmac_main.c:1689:			priv->hw->dma->dma_mode(priv->ioaddr, tc, SF_DMA_MODE);
+nxpmac_main.c:1771:	if (priv->hw->dma->get_hw_feature) {
+nxpmac_main.c:1772:		hw_cap = priv->hw->dma->get_hw_feature(priv->ioaddr);
+nxpmac_main.c:1860:	return priv->hw->dma->init(priv->ioaddr, pbl, fixed_burst, mixed_burst,
+nxpmac_main.c:2125:	priv->hw->dma->start_tx(priv->ioaddr);
+nxpmac_main.c:2126:	priv->hw->dma->start_rx(priv->ioaddr);
+nxpmac_main.c:2131:		priv->hw->dma->dump_regs(priv->ioaddr);
+nxpmac_main.c:2135:	if ((priv->use_riwt) && (priv->hw->dma->rx_watchdog)) {
+nxpmac_main.c:2137:		priv->hw->dma->rx_watchdog(priv->ioaddr, MAX_DMA_RIWT);
+nxpmac_main.c:2310:	priv->hw->dma->stop_tx(priv->ioaddr);
+nxpmac_main.c:2311:	priv->hw->dma->stop_rx(priv->ioaddr);
+nxpmac_main.c:2492:	priv->hw->dma->enable_dma_transmission(priv->ioaddr);
+nxpmac_main.c:3365:	priv->hw->dma->stop_rx(priv->ioaddr);
+nxpmac_main.c:3366:	priv->hw->dma->stop_tx(priv->ioaddr);
+nxpmac_main.c:3403:	priv->hw->dma->stop_tx(priv->ioaddr);
+nxpmac_main.c:3404:	priv->hw->dma->stop_rx(priv->ioaddr);
+Binary file nxpmac_main.o matches
+Binary file nxpmac.o matches
+Binary file nxpmac_platform.o matches
+Binary file nxpmac_ptp.o matches
+Binary file ring_mode.o matches

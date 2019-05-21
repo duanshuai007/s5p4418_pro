@@ -1,0 +1,9 @@
+nx_rstcon.c:24:7:NX_RSTCON_Initialize	0	static
+nx_rstcon.c:29:6:NX_RSTCON_GetPhysicalAddress	0	static
+nx_rstcon.c:36:6:NX_RSTCON_GetSizeOfRegisterSet	0	static
+nx_rstcon.c:40:6:NX_RSTCON_SetBaseAddress	0	static
+nx_rstcon.c:45:6:NX_RSTCON_GetBaseAddress	0	static
+nx_rstcon.c:50:7:NX_RSTCON_SetnRST	8	static
+nx_rstcon.c:62:7:NX_RSTCON_SetRST	8	static
+nx_rstcon.c:73:14:NX_RSTCON_GetnRST	0	static
+nx_rstcon.c:83:13:NX_RSTCON_GetRST	0	static

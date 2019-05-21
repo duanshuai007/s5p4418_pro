@@ -1,0 +1,12 @@
+
+使用4418的uboot
+使用kernel/exynos的kernel
+使用/home/duanshuai/rootfs的system.img
+通过fastboot烧入以上三个文件后
+在uboot下执行一下三条命令：
+setenv bootargs "console=ttyAMA0,115200n8 root=/dev/mmcblk0p2 rw init=/linuxrc"
+ext4load mmc 2:1 0x48000000 uImage
+bootm 0x48000000
+
+
+ make_ext4fs -s -l 314572800 -L linux rootfs/system.img /rootfs
